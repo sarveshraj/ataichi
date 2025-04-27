@@ -28,3 +28,10 @@ build_backend_amd64:
 
 clean_frontend:
 	rm -rf server/ctrl/static/www/
+
+deploy:
+	# This assumes that there is only one machine in the fly.io app
+	MACHINE_ID=$$(fly machine list --json | jq -r '.[0].id') && \
+	fly machine stop $$MACHINE_ID -w 5m && \
+	fly machine destroy $$MACHINE_ID && \
+	fly deploy
