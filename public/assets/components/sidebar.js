@@ -2,7 +2,7 @@ import { createElement, createRender, onDestroy } from "../lib/skeleton/index.js
 import rxjs, { effect, onClick } from "../lib/rx.js";
 import assert from "../lib/assert.js";
 import { fromHref, toHref } from "../lib/skeleton/router.js";
-import { qs, qsa } from "../lib/dom.js";
+import { qs, qsa, safe } from "../lib/dom.js";
 import { forwardURLParams } from "../lib/path.js";
 import { settingsGet, settingsSave } from "../lib/store.js";
 import { loadCSS } from "../helpers/loader.js";
@@ -36,6 +36,7 @@ export default async function ctrlSidebar(render, nRestart = 0) {
             <div data-bind="your-tags"></div>
         </div>
     `));
+    withResize($sidebar);
 
     // feature: visibility of the sidebar
     const forceRefresh = () => window.dispatchEvent(new Event("resize"));
@@ -77,6 +78,30 @@ export default async function ctrlSidebar(render, nRestart = 0) {
     // feature: tag viewer
     ctrlTagPane(createRender(qs($sidebar, `[data-bind="your-tags"]`)));
 }
+
+const withResize = (function() {
+    let memory = null;
+    return ($sidebar) => {
+        const $resize = createElement(`<div class="resizer"></div>`);
+        effect(rxjs.fromEvent($resize, "mousedown").pipe(
+            rxjs.mergeMap((e0) => rxjs.fromEvent(document, "mousemove").pipe(
+                rxjs.takeUntil(rxjs.fromEvent(document, "mouseup")),
+                rxjs.startWith(e0),
+                rxjs.pairwise(),
+                rxjs.map(([prevX, currX]) => currX.clientX - prevX.clientX),
+                rxjs.scan((width, delta) => width + delta, $sidebar.clientWidth),
+            )),
+            rxjs.startWith(memory),
+            rxjs.filter((w) => !!w),
+            rxjs.map((w) => Math.min(Math.max(w, 250), 350)),
+            rxjs.tap((w) => {
+                $sidebar.style.width = `${w}px`;
+                memory = w;
+            }),
+        ));
+        $sidebar.appendChild($resize);
+    };
+}());
 
 async function ctrlNavigationPane(render, { $sidebar, nRestart }) {
     // feature: setup the DOM
@@ -132,11 +157,11 @@ async function ctrlNavigationPane(render, { $sidebar, nRestart }) {
     // feature: highlight current selection
     try {
         const $active = qs($sidebar, `[data-path="${chunk.toString()}"] a`);
-        $active.classList.add("active");
+        $active.setAttribute("aria-selected", "true");
         if (checkVisible($active) === false) {
             $active.offsetTop < window.innerHeight
                 ? $sidebar.firstChild.scrollTo({ top: 0, behavior: "smooth" })
-                : $active.scrollIntoView({ behavior: "smooth" });
+                : $active.scrollIntoView({ behavior: "smooth", block: "nearest" });
         }
     } catch (err) {}
 
@@ -168,43 +193,63 @@ async function _createListOfFiles(path, currentName, dirpath) {
             .filter(({ type, name }) => type === "directory" && name[0] !== ".")
             .map(({ name }) => name)
             .sort();
+
+    const MAX_DISPLAY = 100;
+    const $lis = document.createDocumentFragment();
+    const $fragment = document.createDocumentFragment();
     const $ul = document.createElement("ul");
     for (let i=0; i<whats.length; i++) {
         const currpath = path + whats[i] + "/";
         const $li = createElement(`
-            <li data-path="${currpath}" title="${currpath}" class="no-select">
-                <a data-link href="${forwardURLParams(toHref("/files" + encodeURIComponent(currpath).replaceAll("%2F", "/")), ["share", "canary"])}" draggable="false">
+            <li data-path="${safe(currpath)}" title="${safe(currpath)}" class="no-select">
+                <a data-link href="${safe(forwardURLParams(toHref("/files" + encodeURIComponent(currpath).replaceAll("%2F", "/")), ["share", "canary"]))}" draggable="false" aria-selected="false">
                     <img class="component_icon" src="data:image/svg+xml;base64,PD94bWwgdmVyc2lvbj0iMS4wIiBlbmNvZGluZz0iVVRGLTgiIHN0YW5kYWxvbmU9Im5vIj8+CjxzdmcKICAgYXJpYS1oaWRkZW49InRydWUiCiAgIGZvY3VzYWJsZT0iZmFsc2UiCiAgIGNsYXNzPSJvY3RpY29uIG9jdGljb24tZmlsZS1kaXJlY3RvcnktZmlsbCIKICAgdmlld0JveD0iMCAwIDE2IDE2IgogICB3aWR0aD0iMTYiCiAgIGhlaWdodD0iMTYiCiAgIGZpbGw9ImN1cnJlbnRDb2xvciIKICAgc3R5bGU9ImRpc3BsYXk6IGlubGluZS1ibG9jazsgdXNlci1zZWxlY3Q6IG5vbmU7IHZlcnRpY2FsLWFsaWduOiB0ZXh0LWJvdHRvbTsgb3ZlcmZsb3c6IHZpc2libGU7IgogICB2ZXJzaW9uPSIxLjEiCiAgIGlkPSJzdmcxNTgiCiAgIHNvZGlwb2RpOmRvY25hbWU9ImdpdGh1YmZvbGRlci5zdmciCiAgIGlua3NjYXBlOnZlcnNpb249IjEuMi4yIChiMGE4NDg2NTQxLCAyMDIyLTEyLTAxKSIKICAgeG1sbnM6aW5rc2NhcGU9Imh0dHA6Ly93d3cuaW5rc2NhcGUub3JnL25hbWVzcGFjZXMvaW5rc2NhcGUiCiAgIHhtbG5zOnNvZGlwb2RpPSJodHRwOi8vc29kaXBvZGkuc291cmNlZm9yZ2UubmV0L0RURC9zb2RpcG9kaS0wLmR0ZCIKICAgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIgogICB4bWxuczpzdmc9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KICA8ZGVmcwogICAgIGlkPSJkZWZzMTYyIiAvPgogIDxzb2RpcG9kaTpuYW1lZHZpZXcKICAgICBpZD0ibmFtZWR2aWV3MTYwIgogICAgIHBhZ2Vjb2xvcj0iI2ZmZmZmZiIKICAgICBib3JkZXJjb2xvcj0iIzAwMDAwMCIKICAgICBib3JkZXJvcGFjaXR5PSIwLjI1IgogICAgIGlua3NjYXBlOnNob3dwYWdlc2hhZG93PSIyIgogICAgIGlua3NjYXBlOnBhZ2VvcGFjaXR5PSIwLjAiCiAgICAgaW5rc2NhcGU6cGFnZWNoZWNrZXJib2FyZD0iMCIKICAgICBpbmtzY2FwZTpkZXNrY29sb3I9IiNkMWQxZDEiCiAgICAgc2hvd2dyaWQ9ImZhbHNlIgogICAgIGlua3NjYXBlOnpvb209IjcxLjYyNSIKICAgICBpbmtzY2FwZTpjeD0iNy44MTE1MTgzIgogICAgIGlua3NjYXBlOmN5PSI4IgogICAgIGlua3NjYXBlOndpbmRvdy13aWR0aD0iMjAzNiIKICAgICBpbmtzY2FwZTp3aW5kb3ctaGVpZ2h0PSIxMzk3IgogICAgIGlua3NjYXBlOndpbmRvdy14PSI3IgogICAgIGlua3NjYXBlOndpbmRvdy15PSIzNCIKICAgICBpbmtzY2FwZTp3aW5kb3ctbWF4aW1pemVkPSIxIgogICAgIGlua3NjYXBlOmN1cnJlbnQtbGF5ZXI9InN2ZzE1OCIgLz4KICA8cGF0aAogICAgIGQ9Ik0xLjc1IDFBMS43NSAxLjc1IDAgMCAwIDAgMi43NXYxMC41QzAgMTQuMjE2Ljc4NCAxNSAxLjc1IDE1aDEyLjVBMS43NSAxLjc1IDAgMCAwIDE2IDEzLjI1di04LjVBMS43NSAxLjc1IDAgMCAwIDE0LjI1IDNINy41YS4yNS4yNSAwIDAgMS0uMi0uMWwtLjktMS4yQzYuMDcgMS4yNiA1LjU1IDEgNSAxSDEuNzVaIgogICAgIGlkPSJwYXRoMTU2IgogICAgIHN0eWxlPSJmaWxsOiM1NzU5NWE7ZmlsbC1vcGFjaXR5OjEiIC8+Cjwvc3ZnPgo=" alt="directory">
-                    <div class="ellipsis">${whats[i]}</div>
+                    <div class="ellipsis">${safe(whats[i])}</div>
                 </a>
             </li>
         `);
-        $ul.appendChild($li);
+
         const $link = qs($li, "a");
         if ($li.getAttribute("data-path") === dirpath && location.pathname.startsWith(toHref("/files/"))) {
             $link.removeAttribute("href", "");
             $link.removeAttribute("data-link");
-            continue;
+        } else {
+            $link.ondrop = async(e) => {
+                $link.classList.remove("highlight");
+                const from = e.dataTransfer.getData("path");
+                let to = $link.parentElement.getAttribute("data-path");
+                const [, fromName] = extractPath(from);
+                to += fromName;
+                if (isDir(from)) to += "/";
+                if (from === to) return;
+                await mv(from, to).toPromise();
+            };
+            $link.ondragover = (e) => {
+                if (isNativeFileUpload(e)) return;
+                e.preventDefault();
+                $link.classList.add("highlight");
+            };
+            $link.ondragleave = () => {
+                $link.classList.remove("highlight");
+            };
         }
-        $link.ondrop = async(e) => {
-            $link.classList.remove("highlight");
-            const from = e.dataTransfer.getData("path");
-            let to = $link.parentElement.getAttribute("data-path");
-            const [, fromName] = extractPath(from);
-            to += fromName;
-            if (isDir(from)) to += "/";
-            if (from === to) return;
-            await mv(from, to).toPromise();
-        };
-        $link.ondragover = (e) => {
-            if (isNativeFileUpload(e)) return;
-            e.preventDefault();
-            $link.classList.add("highlight");
-        };
-        $link.ondragleave = () => {
-            $link.classList.remove("highlight");
-        };
+
+        if (i <= MAX_DISPLAY) $lis.appendChild($li);
+        else $fragment.appendChild($li);
+        if (i === MAX_DISPLAY) {
+            const $more = createElement(`
+                <li title="..." class="no-select pointer">
+                    <a><div class="ellipsis">...</div></a>
+                </li>
+            `);
+            $lis.appendChild($more);
+            $more.onclick = () => {
+                $ul.appendChild($fragment);
+                $more.remove();
+            };
+        }
     }
+    $ul.appendChild($lis);
     return $ul;
 }
 

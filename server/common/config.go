@@ -6,7 +6,6 @@ import (
 	"github.com/tidwall/gjson"
 	"github.com/tidwall/sjson"
 	"os"
-	"os/exec"
 	"os/user"
 	"regexp"
 	"strings"
@@ -50,10 +49,13 @@ type FormElement struct {
 	Required    bool        `json:"required"`
 }
 
-func InitConfig() {
+func InitConfig() error {
 	Config = NewConfiguration()
-	Config.Load()
+	if err := Config.Load(); err != nil {
+		return err
+	}
 	Config.Initialise()
+	return nil
 }
 
 func NewConfiguration() Configuration {
@@ -218,11 +220,11 @@ func (this *Form) Iterator() []FormIterator {
 	return slice
 }
 
-func (this *Configuration) Load() {
+func (this *Configuration) Load() error {
 	cFile, err := LoadConfig()
 	if err != nil {
 		Log.Error("config::load %s", err)
-		return
+		return err
 	}
 
 	// Extract enabled backends
@@ -251,7 +253,7 @@ func (this *Configuration) Load() {
 			this.onChange[i].Listener <- nil
 		}
 	}()
-	return
+	return nil
 }
 
 type JSONIterator struct {
@@ -563,17 +565,8 @@ func (this *Configuration) MarshalJSON() ([]byte, error) {
 				}
 				return "n/a"
 			}()},
-			FormElement{Name: "emacs", Type: "boolean", ReadOnly: true, Value: func() bool {
-				if _, err := exec.LookPath("emacs"); err == nil {
-					return true
-				}
-				return false
-			}()},
-			FormElement{Name: "pdftotext", Type: "boolean", ReadOnly: true, Value: func() bool {
-				if _, err := exec.LookPath("pdftotext"); err == nil {
-					return true
-				}
-				return false
+			FormElement{Name: "license", Type: "text", ReadOnly: true, Value: func() string {
+				return LICENSE
 			}()},
 		},
 	})

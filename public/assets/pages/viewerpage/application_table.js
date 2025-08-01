@@ -1,13 +1,13 @@
-import { createElement, nop } from "../../lib/skeleton/index.js";
+import { createElement } from "../../lib/skeleton/index.js";
 import rxjs, { effect } from "../../lib/rx.js";
-import { qs, qsa } from "../../lib/dom.js";
+import { qs, qsa, safe } from "../../lib/dom.js";
 import ajax from "../../lib/ajax.js";
 import { loadCSS } from "../../helpers/loader.js";
 import t from "../../locales/index.js";
 import { createLoader } from "../../components/loader.js";
 import { get as getPlugin } from "../../model/plugin.js";
-import ctrlError from "../ctrl_error.js";
 
+import ctrlDownloader, { init as initDownloader } from "./application_downloader.js";
 import { renderMenubar, buttonDownload } from "./component_menubar.js";
 import { transition } from "./common.js";
 
@@ -19,10 +19,10 @@ class ITable {
     getBody() { throw new Error("NOT_IMPLEMENTED"); }
 }
 
-export default async function(render, { mime, getDownloadUrl = nop, getFilename = nop, hasMenubar = true }) {
+export default async function(render, { mime, getDownloadUrl, getFilename, hasMenubar = true, acl$ = rxjs.EMPTY }) {
     const $page = createElement(`
         <div class="component_tableviewer">
-            <component-menubar filename="${getFilename()}" class="${!hasMenubar && "hidden"}"></component-menubar>
+            <component-menubar filename="${safe(getFilename())}" class="${!hasMenubar && "hidden"}"></component-menubar>
             <div class="component_table_container">
                 <table class="table">
                     <thead class="thead"></thead>
@@ -55,7 +55,7 @@ export default async function(render, { mime, getDownloadUrl = nop, getFilename 
             if (!loader) throw new TypeError(`unsupported mimetype "${mime}"`);
             const [, url] = loader;
             const module = await import(url);
-            let table = new (await module.default(ITable))(response, { $menubar });
+            let table = new (await module.default(ITable, { $menubar }))(response);
             if (typeof table.then === "function") table = await table;
             STATE.header = table.getHeader();
             STATE.body = table.getBody();
@@ -66,7 +66,11 @@ export default async function(render, { mime, getDownloadUrl = nop, getFilename 
             buildHead(STATE, $dom, padding);
             buildRows(STATE.rows.slice(0, MAX_ROWS), STATE.header, $dom.tbody, padding, true, false);
         }),
-        rxjs.catchError(ctrlError()),
+        rxjs.catchError((err) => rxjs.from(initDownloader()).pipe(
+            rxjs.tap(() => ctrlDownloader(render, { acl$, getFilename, getDownloadUrl })),
+            rxjs.tap(() => console.log("cannot open file", err)),
+            rxjs.mergeMap(() => rxjs.EMPTY),
+        )),
         rxjs.share(),
     );
     effect(init$);
@@ -139,10 +143,15 @@ export default async function(render, { mime, getDownloadUrl = nop, getFilename 
     ));
 }
 
-export function init() {
+export function init($root) {
+    const priors = ($root && [
+        $root.classList.add("component_page_viewerpage"),
+        loadCSS(import.meta.url, "./component_menubar.css"),
+        loadCSS(import.meta.url, "../ctrl_viewerpage.css"),
+    ]);
     return Promise.all([
         loadCSS(import.meta.url, "./application_table.css"),
-        loadCSS(import.meta.url, "./component_menubar.css"),
+        ...priors,
     ]);
 }
 
@@ -229,8 +238,12 @@ function resizeLastColumnIfNeeded({ $target, $childs, padding = 0 }) {
 function sortBy(rows, ascending, key) {
     const o = ascending ? 1 : -1;
     return rows.sort((a, b) => {
-        if (a[key] === b[key]) return 0;
-        else if (a[key] < b[key]) return -o;
-        return o;
+        let diff = a[key] - b[key];
+        if (isNaN(diff)) {
+            if (a[key] === b[key]) diff = 0;
+            else if (a[key] < b[key]) diff = -1;
+            else diff = 1;
+        }
+        return o*diff;
     });
 }
