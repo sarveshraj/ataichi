@@ -14,18 +14,18 @@
 
 :root {
     --bg-color: #f9f9fa;
-    --color: #57595A;
+    --color: #3c3e3f;
     --emphasis: #466372;
     --primary: #9AD1ED;
     --emphasis-primary: #c5e2f1;
     --emphasis-secondary: #466372;
-    --light: #878890;
+    --light: #57595A;
     --super-light:  #fafafa;
     --error: #f26d6d;
     --success: #63d9b1;
     --dark: #24272a;
 
-    --border: rgba(198,200,204,0.3);
+    --border: rgba(198,200,204,0.25);
 }
 
 html {
@@ -91,7 +91,7 @@ select:-moz-focusring {
     text-shadow: 0 0 0 #000;
 }
 
-[role="main"] { height: 100%; }
+#app { height: 100%; }
 
 .connect-form input:hover,
 .connect-form textarea:hover,
@@ -125,10 +125,6 @@ select:-moz-focusring {
 }
 
 ::-webkit-scrollbar-thumb {
-    -webkit-border-radius: 2px;
-    -moz-border-radius: 2px;
-    -ms-border-radius: 2px;
-    -o-border-radius: 2px;
     border-radius: 2px;
     background: rgba(0, 0, 0, .2);
 }

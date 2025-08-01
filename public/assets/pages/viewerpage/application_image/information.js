@@ -1,12 +1,12 @@
-import { createElement, createRender } from "../../lib/skeleton/index.js";
-import rxjs, { effect, onClick } from "../../lib/rx.js";
-import { qs } from "../../lib/dom.js";
-import t from "../../locales/index.js";
-import { loadJS, loadCSS } from "../../helpers/loader.js";
+import { createElement, createRender } from "../../../lib/skeleton/index.js";
+import rxjs, { effect, onClick } from "../../../lib/rx.js";
+import { qs } from "../../../lib/dom.js";
+import t from "../../../locales/index.js";
+import { loadJS, loadCSS } from "../../../helpers/loader.js";
 
 export default async function(render, { toggle, load$ }) {
     const $page = createElement(`
-        <div>
+        <div id="pane-info">
             <div data-bind="header"></div>
             <div data-bind="body">
                 <component-icon name="loading"></component-icon>
@@ -22,19 +22,18 @@ function componentHeader(render, { toggle }) {
     const $header = createElement(`
         <div class="header">
             <div>${t("Info")}</div>
-            <div style="flex: 1 1 0%;">
+            <button style="flex: 1 1 0%;" aria-label="${t("close")}">
                 <img class="component_icon" draggable="false" src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA1MS45NzYgNTEuOTc2Ij4KICA8cGF0aCBzdHlsZT0iZmlsbDojMDAwMDAwO2ZpbGwtb3BhY2l0eTowLjUzMzMzMjg1O3N0cm9rZS13aWR0aDoxLjQ1NjgxMTE5IiBkPSJtIDQxLjAwNTMxLDQwLjg0NDA2MiBjIC0xLjEzNzc2OCwxLjEzNzc2NSAtMi45ODIwODgsMS4xMzc3NjUgLTQuMTE5ODYxLDAgTCAyNi4wNjg2MjgsMzAuMDI3MjM0IDE0LjczNzU1MSw0MS4zNTgzMSBjIC0xLjEzNzc3MSwxLjEzNzc3MSAtMi45ODIwOTMsMS4xMzc3NzEgLTQuMTE5ODYxLDAgLTEuMTM3NzcyMiwtMS4xMzc3NjggLTEuMTM3NzcyMiwtMi45ODIwODggMCwtNC4xMTk4NjEgTCAyMS45NDg3NjYsMjUuOTA3MzcyIDExLjEzMTkzOCwxNS4wOTA1NTEgYyAtMS4xMzc3NjQ3LC0xLjEzNzc3MSAtMS4xMzc3NjQ3LC0yLjk4MzU1MyAwLC00LjExOTg2MSAxLjEzNzc3NCwtMS4xMzc3NzIxIDIuOTgyMDk4LC0xLjEzNzc3MjEgNC4xMTk4NjUsMCBMIDI2LjA2ODYyOCwyMS43ODc1MTIgMzYuMzY5NzM5LDExLjQ4NjM5OSBjIDEuMTM3NzY4LC0xLjEzNzc2OCAyLjk4MjA5MywtMS4xMzc3NjggNC4xMTk4NjIsMCAxLjEzNzc2NywxLjEzNzc2OSAxLjEzNzc2NywyLjk4MjA5NCAwLDQuMTE5ODYyIEwgMzAuMTg4NDg5LDI1LjkwNzM3MiA0MS4wMDUzMSwzNi43MjQxOTcgYyAxLjEzNzc3MSwxLjEzNzc2NyAxLjEzNzc3MSwyLjk4MjA5MSAwLDQuMTE5ODY1IHoiIC8+Cjwvc3ZnPgo=" alt="close">
-            </div>
+            </button>
         </div>
     `);
     render($header);
-
     effect(onClick(qs($header, `[alt="close"]`)).pipe(rxjs.tap(toggle)));
 }
 
 function componentBody(render, { load$ }) {
     const $page = createElement(`
-        <div class="content">
+        <div>
             <div class="content_box">
                 <img class="component_icon" draggable="false" src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCA0NDggNTEyIj4KICA8cGF0aCBzdHlsZT0iZmlsbDojMDAwMDAwO2ZpbGwtb3BhY2l0eTowLjIiIGQ9Ik0gNDAwLDY0IEggMzUyIFYgMTIgQyAzNTIsNS40IDM0Ni42LDAgMzQwLDAgaCAtNDAgYyAtNi42LDAgLTEyLDUuNCAtMTIsMTIgViA2NCBIIDE2MCBWIDEyIEMgMTYwLDUuNCAxNTQuNiwwIDE0OCwwIEggMTA4IEMgMTAxLjQsMCA5Niw1LjQgOTYsMTIgViA2NCBIIDQ4IEMgMjEuNSw2NCAwLDg1LjUgMCwxMTIgdiAzNTIgYyAwLDI2LjUgMjEuNSw0OCA0OCw0OCBoIDM1MiBjIDI2LjUsMCA0OCwtMjEuNSA0OCwtNDggViAxMTIgQyA0NDgsODUuNSA0MjYuNSw2NCA0MDAsNjQgWiBtIC0yLDQwNCBIIDUwIGMgLTMuMywwIC02LjAyMjE0NywtMi43MDAwNyAtNiwtNiBWIDE1NCBoIDM2MCB2IDMwOCBjIDAsMy4zIC0yLjcsNiAtNiw2IHoiIC8+Cjwvc3ZnPgo=" alt="schedule">
                 <div class="headline ellipsis" data-bind="date">-</div>
@@ -63,6 +62,9 @@ function componentBody(render, { load$ }) {
 
         if (metadata.location) await componentMap(createRender(qs($page, `[data-bind="map"]`)), { metadata });
         componentMore(createRender(qs($page, `[data-bind="all"]`)), { metadata });
+    }), rxjs.catchError((err) => {
+        qs($page, `[data-bind="all"]`).remove();
+        return rxjs.EMPTY;
     })));
 }
 
@@ -155,13 +157,6 @@ async function componentMap(render, { metadata }) {
 }
 
 function componentMore(render, { metadata }) {
-    const $page = createElement(`
-        <div class="more">
-            <div class="more_container"></div>
-        </div>
-    `);
-    render($page);
-
     const $all = document.createDocumentFragment();
     const formatKey = (str) => str.replace(/([A-Z][a-z])/g, " $1");
     const formatValue = (str) => {
@@ -209,19 +204,20 @@ function componentMore(render, { metadata }) {
         `));
         }
     });
-    qs($page, ".more_container").appendChild($all);
+    render($all);
 }
 
 export function init() {
     return Promise.all([
-        loadJS(import.meta.url, "../../lib/vendor/exif-js.js"),
-        loadCSS(import.meta.url, "./application_image_metadata.css"),
+        loadJS(import.meta.url, "../../../lib/vendor/exif-js.js"),
+        loadCSS(import.meta.url, "./information.css"),
     ]);
 }
 
 const extractExif = ($img) => new Promise((resolve) => window.EXIF.getData($img, function() {
     const metadata = window.EXIF.getAllTags($img);
     const to_date = (str = "") => {
+        if (str === "") return null;
         const digits = str.split(/[ :]/).map((digit) => parseInt(digit));
         return new Date(
             digits[0] || 0,

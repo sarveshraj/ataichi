@@ -11,11 +11,10 @@ WORKDIR /home/filestash/
 COPY --from=builder_prepare /home/filestash .
 RUN apk add make git gzip brotli && \
     npm install --legacy-peer-deps && \
-    make build_frontend && \
-    cd public && make compress
+    make build_frontend
 
 # STEP3: BUILD BACKEND
-FROM golang:1.23-bookworm AS builder_backend
+FROM golang:1.24-bookworm AS builder_backend
 WORKDIR /home/filestash/
 COPY --from=builder_frontend /home/filestash/ .
 RUN apt-get update > /dev/null && \

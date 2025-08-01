@@ -66,6 +66,7 @@ export function createThing({
     path = "",
     size = 0,
     loading = false,
+    offline = false,
     link = "",
     view = "",
     search = "",
@@ -93,6 +94,7 @@ export function createThing({
     $thing.classList.add("view-" + view);
     $time.textContent = formatTime(time);
     $img.setAttribute("src", (type === "file" ? IMAGE.FILE : IMAGE.FOLDER));
+    $img.setAttribute("alt", type);
     $label.textContent = name;
 
     if (type === "file") {
@@ -102,7 +104,7 @@ export function createThing({
         $filesize.textContent = formatSize(size);
         $label.appendChild($filesize);
     }
-    if (mime && view === "grid" && TYPES.THUMBNAILER.has(mime)) {
+    if (mime && view === "grid" && TYPES.THUMBNAILER.has(mime) && offline === false) {
         $extension.classList.add("hidden");
         $img.classList.add("thumbnail");
         const $placeholder = $img.cloneNode(true);
@@ -147,6 +149,10 @@ export function createThing({
     } else if (type === "hidden") {
         $thing.classList.add("hidden");
         return $thing;
+    } else if (offline) {
+        $link.removeAttribute("href");
+        $checkbox.classList.add("hidden");
+        return $thing;
     }
 
     const checked = isSelected(n);
@@ -154,7 +160,7 @@ export function createThing({
     $thing.classList.add(checked ? "selected" : "not-selected");
     $checkbox.firstElementChild.checked = checked;
     $checkbox.onclick = (e) => {
-        e.preventDefault();
+        if (e.target.nodeName !== "INPUT") e.preventDefault(); // eg: keyboard navigation
         e.stopPropagation();
         addSelection({
             n,
