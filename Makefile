@@ -27,4 +27,4 @@ deploy:
 	MACHINE_ID=$$(fly machine list --json | jq -r '.[0].id') && \
 	fly machine stop $$MACHINE_ID -w 5m && \
 	fly machine destroy $$MACHINE_ID && \
-	fly deploy
+	FLY_REMOTE_BUILDER_REGION=sin fly deploy --depot=false
